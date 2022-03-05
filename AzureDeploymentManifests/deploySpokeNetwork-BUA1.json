@@ -1,0 +1,342 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue":"eastus2",
+            "allowedValues": [
+                "centralus",
+                "eastus",
+                "eastus2",
+                "westus2",
+                "southeastasia"
+            ],
+            "metadata": {
+                "description": "The spokes's regional affinity, must be the same as the hub's location. All resources tied to this spoke will also be homed in this region. The network team maintains this approved regional list which is a subset of zones with Availability Zone support."
+            }
+        },
+        "kubernetesVersion": {
+            "defaultValue": "1.21.9",
+            "type": "string",
+            "metadata": {
+                "description": "The version of Kubernetes."
+            }
+        }
+    },
+    "variables": {
+        "orgAppId": "BUA001",
+        "clusterName": "[concat('aks-', variables('orgAppId'))]",
+        "nodeResourceGroupName": "[concat('rg-', variables('clusterName'), '-nodepools')]",
+        "clusterVNetName": "[concat('vnet-spoke-', variables('orgAppId'), '-00')]",
+        "hubVNetName": "[concat('vnet-', parameters('location'), '-hub')]",
+        "hubLaName": "[concat('la-hub-', parameters('location'), '-', uniqueString(resourceId('Microsoft.Network/virtualNetworks', variables('hubVnetName'))))]",
+        "hubLaWorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('hubLaName'))]",
+        "hubVnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('hubVNetName'))]",
+        "toHubPeeringName": "[concat('spoke-to-', variables('hubVNetName'))]",
+        "hubRgName": "[split(variables('hubVnetId'),'/')[4]]",
+        "clusterControlPlaneIdentityName": "[concat('mi-', variables('clusterName'), '-controlplane')]",
+        "networkContributorRole": "[concat(subscription().Id, '/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7')]",
+        "managedIdentityOperatorRole": "[concat(subscription().Id, '/providers/Microsoft.Authorization/roleDefinitions/f1a07417-d97a-45cb-824c-7a7467783830')]",
+        "virtualMachineContributorRole": "[concat(subscription().Id, '/providers/Microsoft.Authorization/roleDefinitions/9980e02c-c2be-4d73-94e8-173b1dc7cf3c')]",
+        "vnetNodePoolSubnetResourceId": "[concat(variables('clusterVNetName'), '/subnets/snet-clusternodes')]",
+        "identityName": "appgwContrIdentity-hubVnet-dev001", // Name of the Identity assigned to the app-gw 
+        "identityId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+    },
+    "resources": [
+        {
+            "name": "[variables('clusterControlPlaneIdentityName')]",
+            "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+            "apiVersion": "2018-11-30",
+            "location": "[parameters('location')]",
+            "comments": "The control plane identity used by the cluster. Used for networking access (VNET joining and DNS updating)"
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[concat('nsg-', variables('clusterVNetName'), '-nodepools')]",
+            "location": "[parameters('location')]",
+            "comments": "Default NSG on the AKS nodepools. Feel free to constrict further!",
+            "properties": {
+                "securityRules": []
+            },
+            "resources": [
+                {
+                    "type": "providers/diagnosticSettings",
+                    "apiVersion": "2017-05-01-preview",
+                    "name": "Microsoft.Insights/toHub",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Network/networkSecurityGroups', concat('nsg-', variables('clusterVNetName'), '-nodepools'))]"
+                    ],
+                    "properties": {
+                        "workspaceId": "[variables('hubLaWorkspaceResourceId')]",
+                        "logs": [
+                            {
+                                "category": "NetworkSecurityGroupEvent",
+                                "enabled": true
+                            },
+                            {
+                                "category": "NetworkSecurityGroupRuleCounter",
+                                "enabled": true
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-05-01",
+            "name": "[variables('clusterVNetName')]",
+            "location": "[parameters('location')]",
+            "comments": "65,536 (-reserved) IPs available to the workload, split across two subnets for AKS and one for App Gateway.",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', concat('nsg-', variables('clusterVNetName'), '-nodepools'))]"
+            ],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.240.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "snet-clusternodes",
+                        "properties": {
+                            "addressPrefix": "10.240.0.0/22",
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat('nsg-', variables('clusterVNetName'), '-nodepools'))]"
+                            },
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    }
+                ]
+            },
+            "resources": [
+                {
+                    "type": "virtualNetworkPeerings",
+                    "apiVersion": "2020-05-01",
+                    "name": "[variables('toHubPeeringName')]",
+                    "comments": "Peer to regional hub.",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]"
+                    ],
+                    "properties": {
+                        "remoteVirtualNetwork": {
+                            "id": "[variables('hubVnetId')]"
+                        },
+                        "allowForwardedTraffic": false,
+                        "allowVirtualNetworkAccess": true,
+                        "allowGatewayTransit": false,
+                        "useRemoteGateways": false
+                    }
+                },
+                {
+                    "type": "providers/diagnosticSettings",
+                    "apiVersion": "2017-05-01-preview",
+                    "name": "Microsoft.Insights/toHub",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]"
+                    ],
+                    "properties": {
+                        "workspaceId": "[variables('hubLaWorkspaceResourceId')]",
+                        "metrics": [
+                            {
+                                "category": "AllMetrics",
+                                "enabled": true
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "[concat('CreateHubTo', variables('clusterVNetName'), 'Peer')]",
+            "resourceGroup": "[variables('hubRgName')]",
+            "comments": "Sub incremental deployment to perform hub-to-spoke peering",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', variables('clusterVNetName'), variables('toHubPeeringName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+                            "apiVersion": "2020-05-01",
+                            "name": "[concat(variables('hubVNetName'), '/hub-to-', variables('clusterVNetName'))]",
+                            "properties": {
+                                "remoteVirtualNetwork": {
+                                    "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]"
+                                },
+                                "allowForwardedTraffic": false,
+                                "allowGatewayTransit": false,
+                                "allowVirtualNetworkAccess": true,
+                                "useRemoteGateways": false
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "name": "EnsureClusterIdentityHasRbacToSelfManagedResources",
+            "apiVersion": "2020-06-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('clusterControlPlaneIdentityName'))]"
+            ],
+            "resourceGroup": "[variables('hubRgName')]",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/roleAssignments",
+                            "apiVersion": "2020-04-01-preview",
+                            "name": "[guid(variables('vnetNodePoolSubnetResourceId'), variables('networkContributorRole'), variables('clusterControlPlaneIdentityName'))]",
+                            "scope": "[concat('Microsoft.Network/virtualNetworks/', variables('clusterVNetName'), '/subnets/', 'snet-clusternodes')]",
+                            "properties": {
+                                "roleDefinitionId": "[variables('networkContributorRole')]",
+                                "description": "Allows cluster identity to join the nodepool vmss resources to this subnet.",
+                                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('clusterControlPlaneIdentityName'))).principalId]",
+                                "principalType": "ServicePrincipal"
+                            }
+                        },
+                        {
+                            "type": "Microsoft.ManagedIdentity/userAssignedIdentities/providers/roleAssignments",
+                            "apiVersion": "2017-05-01",
+                            "name": "[concat(variables('identityName'), '/Microsoft.Authorization/', guid(resourceGroup().id, 'aksidentityaccess'))]",
+                            "properties": {
+                                "roleDefinitionId": "[variables('managedIdentityOperatorRole')]",
+                                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('clusterControlPlaneIdentityName'))).principalId]",
+                                "scope": "[variables('identityId')]",
+                                "principalType": "ServicePrincipal"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "name": "EnsureClusterUserAssignedHasRbacToManageVMSS",
+            "apiVersion": "2017-05-10",
+            "dependsOn": [
+                "[resourceId('Microsoft.ContainerService/managedClusters', variables('clusterName'))]"
+            ],
+            "resourceGroup": "[variables('nodeResourceGroupName')]",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/roleAssignments",
+                            "apiVersion": "2018-09-01-preview",
+                            "name": "[guid(resourceGroup().id)]",
+                            "comments": "It is required to grant the AKS cluster with Virtual Machine Contributor role permissions over the cluster infrastructure resource group to work with Managed Identities and aad-pod-identity. Otherwise MIC component fails while attempting to update MSI on VMSS cluster nodes",
+                            "properties": {
+                                "roleDefinitionId": "[variables('virtualMachineContributorRole')]",
+                                "principalId": "[reference(resourceId('Microsoft.ContainerService/managedClusters', variables('clusterName')), '2020-03-01').identityProfile.kubeletidentity.objectId]",
+                                "principalType": "ServicePrincipal"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.ContainerService/managedClusters",
+            "apiVersion": "2021-02-01",
+            "name": "[variables('clusterName')]",
+            "location": "[parameters('location')]",
+            "tags": {
+                "Business unit": "BU0001",
+                "Application identifier": "a0008"
+            },
+            "dependsOn": [
+                "[resourceId(variables('hubRgName'), 'Microsoft.Resources/deployments', 'EnsureClusterIdentityHasRbacToSelfManagedResources')]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('clusterControlPlaneIdentityName'))]"
+            ],
+            "properties": {
+                "kubernetesVersion": "[parameters('kubernetesVersion')]",
+                "dnsPrefix": "[uniqueString(subscription().subscriptionId, resourceGroup().id, variables('clusterName'))]",
+                "agentPoolProfiles": [
+                    {
+                        "name": "agentpool",
+                        "count": 2,
+                        "vmSize": "Standard_D2S_v3",
+                        "osDiskSizeGB": 80,
+                        "osDiskType": "Managed",
+                        "osType": "Linux",
+                        "minCount": 2,
+                        "maxCount": 3,
+                        "vnetSubnetID": "[variables('vnetNodePoolSubnetResourceId')]",
+                        "enableAutoScaling": true,
+                        "type": "VirtualMachineScaleSets",
+                        "scaleSetPriority": "Regular",
+                        "scaleSetEvictionPolicy": "Delete",
+                        "orchestratorVersion": "[parameters('kubernetesVersion')]",
+                        "enableNodePublicIP": false,
+                        "maxPods": 30
+                    }
+                ],
+                "servicePrincipalProfile": {
+                    "clientId": "msi"
+                },
+                "nodeResourceGroup": "[variables('nodeResourceGroupName')]",
+                "enableRBAC": true,
+                "enablePodSecurityPolicy": false,
+                "networkProfile": {
+                    "networkPlugin": "azure",
+                    "networkPolicy": "azure",
+                    "serviceCidr": "172.16.0.0/16",
+                    "dnsServiceIP": "172.16.0.10",
+                    "dockerBridgeCidr": "172.18.0.1/16"
+                },
+                "aadProfile": {
+                    "managed": true,
+                    "enableAzureRBAC": true
+                },
+                "disableLocalAccounts": true
+            },
+            "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('clusterControlPlaneIdentityName'))]": {}
+                }
+            },
+            "sku": {
+                "name": "Basic",
+                "tier": "Paid"
+            }
+        }
+    ],
+    "outputs": {
+        "subscriptionId": {
+            "type": "string",
+            "value": "[subscription().subscriptionId]"
+        },
+        "resourceGroupName": {
+            "type": "string",
+            "value": "[resourceGroup().name]"
+        },
+        "clusterVnetResourceId": {
+            "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('clusterVNetName'))]",
+            "type": "string"
+        },
+        "nodepoolSubnetResourceIds": {
+            "value": "[createArray(resourceId('Microsoft.Network/virtualNetworks/subnets', variables('clusterVNetName'), 'snet-clusternodes'))]",
+            "type": "array"
+        }
+    }
+}

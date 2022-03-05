@@ -1,0 +1,33 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "hubVnetAddressSpace": {
+            "value": "10.0.0.0/16"
+        },
+        "location": {
+            "value": "eastus2"
+        },
+        "applicationGatewaySku": {
+            "value": "WAF_v2"
+        },
+        "BUA01SiteHostName": {
+            "value": "BUA001.contoso.com"
+        },
+        "BUA02SiteHostName": {
+            "value": "BUA002.contoso.com"
+        },
+        "BUA01SiteCertData": {
+            "value": ""
+        },
+        "BUA01SiteCertPassword": {
+            "value": ""
+        },
+        "BUA02SitecertData": {
+            "value": ""
+        },
+        "BUA02SiteCertPassword": {
+            "value": ""
+        }
+    }
+}
