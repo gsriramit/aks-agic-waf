@@ -57,7 +57,7 @@
         "BUA01SiteCertPassword": {
             "type": "string"
         },
-        "BUA02SitecertData": {
+        "BUA02SiteCertData": {
             "type": "string"
         },
         "BUA02SiteCertPassword": {
@@ -65,7 +65,7 @@
         }
     },
     "variables": {
-         "resgpguid": "hubVnet-dev001",
+        "resgpguid": "hubVnet-dev001",
         "hubVNetName": "[concat('vnet-', parameters('location'), '-hub')]",      
         "hubLaName": "[concat('la-hub-', parameters('location'), '-', uniqueString(resourceId('Microsoft.Network/virtualNetworks', variables('hubVnetName'))))]",
         "hubLaWorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('hubLaName'))]",
@@ -367,7 +367,9 @@
                             },
                             "frontendIPConfiguration": {
                                 "id": "[concat(variables('applicationGatewayId'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
-                            }
+                            },
+                            "HostName": "[parameters('BUA01SiteHostName')]",
+                            "RequireServerNameIndication": true
                         }
                     },
                     {
@@ -379,7 +381,9 @@
                             },
                             "frontendIPConfiguration": {
                                 "id": "[concat(variables('applicationGatewayId'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
-                            }
+                            },
+                            "HostName": "[parameters('BUA02SiteHostName')]",
+                            "RequireServerNameIndication": true
                         }
                     },
                     {
@@ -403,7 +407,7 @@
                         "name": "appGatewayHttpsListener2",
                         "properties": {
                             "frontendPort": {
-                                "id": "[concat(variables('applicationGatewayId'), '/frontendPorts/httpsPort1')]"
+                                "id": "[concat(variables('applicationGatewayId'), '/frontendPorts/httpsPort2')]"
                             },
                             "frontendIPConfiguration": {
                                 "id": "[concat(variables('applicationGatewayId'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
