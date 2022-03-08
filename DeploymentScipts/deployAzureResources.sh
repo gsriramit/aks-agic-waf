@@ -6,8 +6,8 @@ apt install jq
 # Declare the variables
 RG_LOCATION='eastus2'
 RG_NAME='rg-aksagic-dev0001'
-SUBSCRIPTION_ID="695471ea-1fc3-42ee-a854-eab6c3009516"
-TENANT_ID="d787514b-d3f2-45ff-9bf1-971fb473fc85"
+SUBSCRIPTION_ID=""
+TENANT_ID=""
 DOMAIN_NAME="contoso.com"
 SUBDOMAIN_BUA1="BUA001"
 SUBDOMAIN_BUA2="BUA002"

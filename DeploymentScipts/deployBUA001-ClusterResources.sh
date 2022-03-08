@@ -13,21 +13,6 @@ CLUSTER_NAME=$(jq -r ".aksClusterName.value" spoke1deployment-outputs.json)
 # Set the context to the cluster in the first spoke
 az aks get-credentials -n $CLUSTER_NAME -g $RG_NAME --admin
 
-############## TEMP CODE BLOCK (TBR)######################
-# export IDENTITY_RESOURCE_GROUP="$(az aks show -g ${RG_NAME} -n ${CLUSTER_NAME} --query nodeResourceGroup -otsv)"
-
-# get the client-Id of the managed identity assigned to the node pool
-# AGENTPOOL_IDENTITY_CLIENTID=$(az aks show -g $RG_NAME -n $CLUSTER_NAME --query identityProfile.kubeletidentity.clientId -o tsv)
-
-# perform the necessary role assignments to the managed identity of the nodepool (used by the kubelet)
-# Important Note: The roles Managed Identity Operator and Virtual Machine Contributor must be assigned to the cluster managed identity or service principal, identified by the ID obtained above, 
-# ""before deploying AAD Pod Identity"" so that it can assign and un-assign identities from the underlying VM/VMSS.
-# az role assignment create --role "Managed Identity Operator" --assignee $AGENTPOOL_IDENTITY_CLIENTID --scope /subscriptions/${SUBSCRIPTION_ID}/resourcegroups/${IDENTITY_RESOURCE_GROUP}
-# az role assignment create --role "Managed Identity Operator" --assignee $AGENTPOOL_IDENTITY_CLIENTID --scope /subscriptions/${SUBSCRIPTION_ID}/resourcegroups/${RG_NAME}/providers/microsoft.managedidentity/userassignedidentities/appgwcontridentity-hubvnet-dev001
-#/subscriptions/695471ea-1fc3-42ee-a854-eab6c3009516/resourcegroups/rg-aksagic-dev0001/providers/microsoft.managedidentity/userassignedidentities/appgwcontridentity-hubvnet-dev001
-
-############## TEMP CODE BLOCK ######################
-
 # Deploy the CRDs for AAD Pod Managed Identity. This is required for the AGIC pod to interact with the ARM
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.6/deploy/infra/deployment-rbac.yaml
 # Deploy the required CRDs needed to process AzureIngressProhibitedTarget resource requests

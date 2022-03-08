@@ -210,18 +210,7 @@
                                 "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('clusterControlPlaneIdentityName'))).principalId]",
                                 "principalType": "ServicePrincipal"
                             }
-                        } /* ,
-                        {
-                            "type": "Microsoft.ManagedIdentity/userAssignedIdentities/providers/roleAssignments",
-                            "apiVersion": "2017-05-01",
-                            "name": "[concat(variables('identityName'), '/Microsoft.Authorization/', guid(resourceGroup().id, 'aksidentityaccess'))]",
-                            "properties": {
-                                "roleDefinitionId": "[variables('managedIdentityOperatorRole')]",
-                                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('clusterControlPlaneIdentityName'))).principalId]",
-                                "scope": "[variables('identityId')]",
-                                "principalType": "ServicePrincipal"
-                            }
-                        } */
+                        } 
                     ]
                 }
             }
@@ -243,25 +232,14 @@
                         {
                             "type": "Microsoft.Authorization/roleAssignments",
                             "apiVersion": "2018-09-01-preview",
-                            "name": "[guid(resourceGroup().id)]",
+                            "name": "[guid(resourceGroup().id,variables('clusterName'))]",
                             "comments": "It is required to grant the AKS cluster with Virtual Machine Contributor role permissions over the cluster infrastructure resource group to work with Managed Identities and aad-pod-identity. Otherwise MIC component fails while attempting to update MSI on VMSS cluster nodes",
                             "properties": {
                                 "roleDefinitionId": "[variables('virtualMachineContributorRole')]",
                                 "principalId": "[reference(resourceId('Microsoft.ContainerService/managedClusters', variables('clusterName')), '2020-03-01').identityProfile.kubeletidentity.objectId]",
                                 "principalType": "ServicePrincipal"
                             }
-                        }/* ,
-                        {
-                            "type": "Microsoft.ManagedIdentity/userAssignedIdentities/providers/roleAssignments",
-                            "apiVersion": "2017-05-01",
-                            "name": "[concat(variables('identityName'), '/Microsoft.Authorization/', guid(resourceGroup().id, 'aksidentityaccess'))]",
-                            "properties": {
-                                "roleDefinitionId": "[variables('managedIdentityOperatorRole')]",
-                                "principalId": "[reference(resourceId('Microsoft.ContainerService/managedClusters', variables('clusterName')), '2020-03-01').identityProfile.kubeletidentity.objectId]",
-                                "scope": "[variables('identityId')]",
-                                "principalType": "ServicePrincipal"
-                            }
-                        } */
+                        }
                     ]
                 }
             }
@@ -283,7 +261,7 @@
                         {
                             "type": "Microsoft.ManagedIdentity/userAssignedIdentities/providers/roleAssignments",
                             "apiVersion": "2017-05-01",
-                            "name": "[concat(variables('identityName'), '/Microsoft.Authorization/', guid(resourceGroup().id, 'aksidentityaccess'))]",
+                            "name": "[concat(variables('identityName'), '/Microsoft.Authorization/', guid(resourceGroup().id, 'aksidentityaccess',variables('clusterName')))]",
                             "properties": {
                                 "roleDefinitionId": "[variables('managedIdentityOperatorRole')]",
                                 "principalId": "[reference(concat(subscription().id,'/resourcegroups/',variables('hubRgName'),'/providers/Microsoft.ContainerService/managedClusters/', variables('clusterName')), '2020-03-01').identityProfile.kubeletidentity.objectId]",
