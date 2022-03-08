@@ -325,21 +325,9 @@
                         }
                     },
                     {
-                        "name": "httpPort2",
-                        "properties": {
-                            "Port": 81
-                        }
-                    },
-                    {
                         "name": "httpsPort",
                         "properties": {
                             "Port": 443
-                        }
-                    },
-                    {
-                        "name": "httpsPort2",
-                        "properties": {
-                            "Port": 444
                         }
                     }
                 ],
@@ -359,7 +347,7 @@
                 ],
                 "httpListeners": [
                     {
-                        "name": "appGatewayHttpListener1",
+                        "name": "appGatewayHttpListener",
                         "properties": {
                             "protocol": "Http",
                             "frontendPort": {
@@ -368,26 +356,11 @@
                             "frontendIPConfiguration": {
                                 "id": "[concat(variables('applicationGatewayId'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
                             },
-                            "HostName": "[parameters('BUA01SiteHostName')]",
-                            "RequireServerNameIndication": true
+                            "HostName": "[parameters('BUA01SiteHostName')]"
                         }
                     },
                     {
-                        "name": "appGatewayHttpListener2",
-                        "properties": {
-                            "protocol": "Http",
-                            "frontendPort": {
-                                "id": "[concat(variables('applicationGatewayId'), '/frontendPorts/httpPort2')]"
-                            },
-                            "frontendIPConfiguration": {
-                                "id": "[concat(variables('applicationGatewayId'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
-                            },
-                            "HostName": "[parameters('BUA02SiteHostName')]",
-                            "RequireServerNameIndication": true
-                        }
-                    },
-                    {
-                        "name": "appGatewayHttpsListener1",
+                        "name": "appGatewayHttpsListener",
                         "properties": {
                             "frontendPort": {
                                 "id": "[concat(variables('applicationGatewayId'), '/frontendPorts/httpsPort')]"
@@ -402,25 +375,7 @@
                             "HostName": "[parameters('BUA01SiteHostName')]",
                             "RequireServerNameIndication": true
                         }
-                    },
-                    {
-                        "name": "appGatewayHttpsListener2",
-                        "properties": {
-                            "frontendPort": {
-                                "id": "[concat(variables('applicationGatewayId'), '/frontendPorts/httpsPort2')]"
-                            },
-                            "frontendIPConfiguration": {
-                                "id": "[concat(variables('applicationGatewayId'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
-                            },
-                            "Protocol": "Https",
-                            "SslCertificate": {
-                                "Id": "[resourceId('Microsoft.Network/applicationGateways/sslCertificates', variables('applicationGatewayName'), 'appGatewaySslCert2')]"
-                            },
-                            "HostName": "[parameters('BUA02SiteHostName')]",
-                            "RequireServerNameIndication": true
-                        }
                     }
-
                 ],
                 "backendHttpSettingsCollection": [
                     {
@@ -433,10 +388,10 @@
                 ],
                 "requestRoutingRules": [
                     {
-                        "name": "httproutingrule-BUA1",
+                        "name": "httproutingrule",
                         "properties": {
                             "httpListener": {
-                                "id": "[concat(variables('applicationGatewayId'), '/httpListeners/appGatewayHttpListener1')]"
+                                "id": "[concat(variables('applicationGatewayId'), '/httpListeners/appGatewayHttpListener')]"
                             },
                             "backendAddressPool": {
                                 "id": "[concat(variables('applicationGatewayId'), '/backendAddressPools/bepool-akscluster-BUA1')]"
@@ -447,41 +402,13 @@
                         }
                     },
                     {
-                        "name": "httproutingrule-BUA2",
+                        "name": "httpsroutingrule",
                         "properties": {
                             "httpListener": {
-                                "id": "[concat(variables('applicationGatewayId'), '/httpListeners/appGatewayHttpListener2')]"
-                            },
-                            "backendAddressPool": {
-                                "id": "[concat(variables('applicationGatewayId'), '/backendAddressPools/bepool-akscluster-BUA2')]"
-                            },
-                            "backendHttpSettings": {
-                                "id": "[concat(variables('applicationGatewayId'), '/backendHttpSettingsCollection/setting')]"
-                            }
-                        }
-                    },
-                    {
-                        "name": "httpsroutingrule-BUA1",
-                        "properties": {
-                            "httpListener": {
-                                "id": "[concat(variables('applicationGatewayId'), '/httpListeners/appGatewayHttpsListener1')]"
+                                "id": "[concat(variables('applicationGatewayId'), '/httpListeners/appGatewayHttpsListener')]"
                             },
                             "backendAddressPool": {
                                 "id": "[concat(variables('applicationGatewayId'), '/backendAddressPools/bepool-akscluster-BUA1')]"
-                            },
-                            "backendHttpSettings": {
-                                "id": "[concat(variables('applicationGatewayId'), '/backendHttpSettingsCollection/setting')]"
-                            }
-                        }
-                    },
-                    {
-                        "name": "httpsroutingrule-BUA2",
-                        "properties": {
-                            "httpListener": {
-                                "id": "[concat(variables('applicationGatewayId'), '/httpListeners/appGatewayHttpsListener2')]"
-                            },
-                            "backendAddressPool": {
-                                "id": "[concat(variables('applicationGatewayId'), '/backendAddressPools/bepool-akscluster-BUA2')]"
                             },
                             "backendHttpSettings": {
                                 "id": "[concat(variables('applicationGatewayId'), '/backendHttpSettingsCollection/setting')]"

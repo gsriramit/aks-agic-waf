@@ -25,7 +25,7 @@
         }
     },
     "variables": {
-        "orgAppId": "BUA001",
+        "orgAppId": "BUA002",
         "clusterName": "[concat('aks-', variables('orgAppId'))]",
         "nodeResourceGroupName": "[concat('rg-', variables('clusterName'), '-nodepools')]",
         "clusterVNetName": "[concat('vnet-spoke-', variables('orgAppId'), '-00')]",
@@ -40,7 +40,7 @@
         "managedIdentityOperatorRole": "[concat(subscription().Id, '/providers/Microsoft.Authorization/roleDefinitions/f1a07417-d97a-45cb-824c-7a7467783830')]",
         "virtualMachineContributorRole": "[concat(subscription().Id, '/providers/Microsoft.Authorization/roleDefinitions/9980e02c-c2be-4d73-94e8-173b1dc7cf3c')]",
         "vnetNodePoolSubnetResourceId": "[concat(resourceGroup().id,'/providers/Microsoft.Network/virtualNetworks/',variables('clusterVNetName'), '/subnets/snet-clusternodes')]",
-        "identityName": "appgwContrIdentity-hubVnet-dev001", // Name of the Identity used by the agic to update the appgw's config through ARM  
+        "identityName": "appgwContrIdentity-hubVnet-dev001", // Name of the Identity used by the agic to update the appgw's config through ARM 
         "identityId": "[concat(subscription().id,'/resourcegroups/', variables('hubRgName'),'/providers/microsoft.managedidentity/userassignedidentities/', variables('identityName'))]"
     },
     "resources": [
@@ -96,14 +96,14 @@
             "properties": {
                 "addressSpace": {
                     "addressPrefixes": [
-                        "10.240.0.0/16"
+                        "10.250.0.0/16"
                     ]
                 },
                 "subnets": [
                     {
                         "name": "snet-clusternodes",
                         "properties": {
-                            "addressPrefix": "10.240.0.0/22",
+                            "addressPrefix": "10.250.0.0/22",
                             "networkSecurityGroup": {
                                 "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat('nsg-', variables('clusterVNetName'), '-nodepools'))]"
                             },
@@ -228,7 +228,7 @@
         },
         {
             "type": "Microsoft.Resources/deployments",
-            "name": "EnsureClusterUserAssignedHasRbacToManageVMSS",
+            "name": "[concat('EnsureClusterUserAssignedHasRbacToManageVMSS','-',variables('clusterName'))]",
             "apiVersion": "2017-05-10",
             "dependsOn": [
                 "[resourceId('Microsoft.ContainerService/managedClusters', variables('clusterName'))]"
@@ -243,7 +243,7 @@
                         {
                             "type": "Microsoft.Authorization/roleAssignments",
                             "apiVersion": "2018-09-01-preview",
-                            "name": "[guid(resourceGroup().id)]",
+                            "name": "[guid(resourceGroup().id,variables('clusterName'))]",
                             "comments": "It is required to grant the AKS cluster with Virtual Machine Contributor role permissions over the cluster infrastructure resource group to work with Managed Identities and aad-pod-identity. Otherwise MIC component fails while attempting to update MSI on VMSS cluster nodes",
                             "properties": {
                                 "roleDefinitionId": "[variables('virtualMachineContributorRole')]",
@@ -268,7 +268,7 @@
         },
         {
             "type": "Microsoft.Resources/deployments",
-            "name": "EnsureClusterUserAssignedHasRbacToManageIdentities",
+            "name": "[concat('EnsureClusterUserAssignedHasRbacToManageIdentities','-',variables('clusterName'))]",
             "apiVersion": "2017-05-10",
             "dependsOn": [
                 "[concat(subscription().id,'/resourcegroups/',variables('hubRgName'),'/providers/Microsoft.ContainerService/managedClusters/', variables('clusterName'))]"
@@ -283,7 +283,7 @@
                         {
                             "type": "Microsoft.ManagedIdentity/userAssignedIdentities/providers/roleAssignments",
                             "apiVersion": "2017-05-01",
-                            "name": "[concat(variables('identityName'), '/Microsoft.Authorization/', guid(resourceGroup().id, 'aksidentityaccess'))]",
+                            "name": "[concat(variables('identityName'), '/Microsoft.Authorization/', guid(resourceGroup().id, 'aksidentityaccess',variables('clusterName')))]",
                             "properties": {
                                 "roleDefinitionId": "[variables('managedIdentityOperatorRole')]",
                                 "principalId": "[reference(concat(subscription().id,'/resourcegroups/',variables('hubRgName'),'/providers/Microsoft.ContainerService/managedClusters/', variables('clusterName')), '2020-03-01').identityProfile.kubeletidentity.objectId]",
@@ -301,7 +301,7 @@
             "name": "[variables('clusterName')]",
             "location": "[parameters('location')]",
             "tags": {
-                "Business unit": "BUA001",
+                "Business unit": "BUA002",
                 "Application identifier": "a0008"
             },
             "dependsOn": [

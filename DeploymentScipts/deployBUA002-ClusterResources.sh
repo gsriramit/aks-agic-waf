@@ -9,11 +9,11 @@ SUBSCRIPTION_ID=""
 TENANT_ID=""
 
 # Get the name of the cluster from the spoke deployment outputs
-CLUSTER_NAME=$(jq -r ".aksClusterName.value" spoke1deployment-outputs.json)
+CLUSTER_NAME=$(jq -r ".aksClusterName.value" spoke2deployment-outputs.json)
 # Set the context to the cluster in the first spoke
 az aks get-credentials -n $CLUSTER_NAME -g $RG_NAME --admin
 
-############## TEMP CODE BLOCK (TBR)######################
+############## TEMP CODE BLOCK (To be removed)######################
 # export IDENTITY_RESOURCE_GROUP="$(az aks show -g ${RG_NAME} -n ${CLUSTER_NAME} --query nodeResourceGroup -otsv)"
 
 # get the client-Id of the managed identity assigned to the node pool
@@ -60,7 +60,7 @@ sed -i "s|<enabled>|${aksclusterrbacenabled}|g" helm-config.yaml
 sed -i "s|<shared>|${appgwshared}|g" helm-config.yaml
 
 # Create the AzureIngressProhibitedTarget  resource
-kubectl apply -f KubernetesManifests/cluster-BUA1-AgicProhibitedTarget.yaml
+kubectl apply -f KubernetesManifests/cluster-BUA2-AgicProhibitedTarget.yaml
 
 # Install the Helm package
 helm install ingress-azure \
@@ -80,23 +80,23 @@ kubectl get AzureIngressProhibitedTargets
 # Note: This step assumes that the certificate (.crt) and the key (.key) files are present in the execution environment
 
 # Create the base64 encoded string values of the CRT and the Key files
-APP_GATEWAY_LISTENER_A01_CERTIFICATE_DATA=$(cat appgwlistenerbu1.crt | base64 | tr -d '\n')
-APP_GATEWAY_LISTENER_A01_CERTIFICATE_KEYDATA=$(cat appgwlistenerbu1.key | base64 | tr -d '\n')
+APP_GATEWAY_LISTENER_A02_CERTIFICATE_DATA=$(cat appgwlistenerbu2.crt | base64 | tr -d '\n')
+APP_GATEWAY_LISTENER_A02_CERTIFICATE_KEYDATA=$(cat appgwlistenerbu2.key | base64 | tr -d '\n')
 
 # Update the values in the secrets file
 # yq -i '.data.tls.cert1.value |= "$APP_GATEWAY_LISTENER_A01_CERTIFICATE_DATA"' KubernetesManifests/cluster-BUA1-ingress-tlssecret.yaml
 # yq w KubernetesManifests/cluster-BUA1-ingress-tlssecret.yaml "data.tls.cert.value" "${APP_GATEWAY_LISTENER_A01_CERTIFICATE_DATA}"
 # yq w KubernetesManifests/cluster-BUA1-ingress-tlssecret.yaml "data.tls.cert.key" "${APP_GATEWAY_LISTENER_A01_CERTIFICATE_KEYDATA}"
 
-# **Important: The commands attempted (above) do not seem to work with yq 4.16.x. Manually updating the secret values for now
+# **Important: The commands attempted (above) dp not seem to work with yq 4.16.x. Manually updating the secret values for now
 
 #Create the TLS secret resource
-kubectl apply -f KubernetesManifests/cluster-BUA1-ingress-tlssecret.yaml
+kubectl apply -f KubernetesManifests/cluster-BUA2-ingress-tlssecret.yaml
 
 # Deploy the test workload
-kubectl apply -f KubernetesManifests/cluster-workload-aspnetapp.yaml
+kubectl apply -f KubernetesManifests/cluster-workload-votingapp.yaml
 # Deploy the ingress resource for the BUA001.contoso.com host
-kubectl apply -f KubernetesManifests/cluster-BUA1-ingress.yaml
+kubectl apply -f KubernetesManifests/cluster-BUA2-ingress.yaml
 
 # Reference to the helm upgrade command
 # helm upgrade \

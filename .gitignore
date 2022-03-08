@@ -3,3 +3,4 @@ appgwlistenerbu*.crt
 appgwlistenerbu*.key
 appgwlistenerbu*.pfx
 *-outputs.json
+helm-config-reference.yaml

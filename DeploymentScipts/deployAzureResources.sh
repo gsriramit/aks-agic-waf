@@ -6,8 +6,8 @@ apt install jq
 # Declare the variables
 RG_LOCATION='eastus2'
 RG_NAME='rg-aksagic-dev0001'
-SUBSCRIPTION_ID=""
-TENANT_ID=""
+SUBSCRIPTION_ID="695471ea-1fc3-42ee-a854-eab6c3009516"
+TENANT_ID="d787514b-d3f2-45ff-9bf1-971fb473fc85"
 DOMAIN_NAME="contoso.com"
 SUBDOMAIN_BUA1="BUA001"
 SUBDOMAIN_BUA2="BUA002"
@@ -39,25 +39,29 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -out appgwlistenerbu2.crt -k
 openssl pkcs12 -export -out appgwlistenerbu2.pfx -in appgwlistenerbu2.crt -inkey appgwlistenerbu2.key -passout pass:${TLS_CERTPASSWORD}
 export APP_GATEWAY_LISTENER_A02_CERTIFICATE_DATA=$(cat appgwlistenerbu2.pfx | base64 | tr -d '\n')
 
+# Note: The following section is needed when configuring TLS certificates at the listener level of the app-gw directly. This is applicable in scenarios other than AGIC for AKS
+# In an AGIC setup, the AGIC pod takes control of appgw's configuration based on the ingress resource config 
+# So configure TLS in the ingress config which would then be applied to the gateway
+
 # Update the TLS certificate values before running the deployment
-cd AzureDeploymentManifests
-echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert "$APP_GATEWAY_LISTENER_A01_CERTIFICATE_DATA" '.parameters.BUA01SiteCertData.value|=$app_gw_cert') > deployHubNetwork.Parameters.json
-echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert_pwd "$TLS_CERTPASSWORD" '.parameters.BUA01SiteCertPassword.value|=$app_gw_cert_pwd') > deployHubNetwork.Parameters.json
-echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert "$APP_GATEWAY_LISTENER_A02_CERTIFICATE_DATA" '.parameters.BUA02SiteCertData.value|=$app_gw_cert') > deployHubNetwork.Parameters.json
-echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert_pwd "$TLS_CERTPASSWORD" '.parameters.BUA02SiteCertPassword.value|=$app_gw_cert_pwd') > deployHubNetwork.Parameters.json
+# cd AzureDeploymentManifests
+# echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert "$APP_GATEWAY_LISTENER_A01_CERTIFICATE_DATA" '.parameters.BUA01SiteCertData.value|=$app_gw_cert') > deployHubNetwork.Parameters.json
+# echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert_pwd "$TLS_CERTPASSWORD" '.parameters.BUA01SiteCertPassword.value|=$app_gw_cert_pwd') > deployHubNetwork.Parameters.json
+# echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert "$APP_GATEWAY_LISTENER_A02_CERTIFICATE_DATA" '.parameters.BUA02SiteCertData.value|=$app_gw_cert') > deployHubNetwork.Parameters.json
+# echo $(cat deployHubNetwork.Parameters.json | jq --arg app_gw_cert_pwd "$TLS_CERTPASSWORD" '.parameters.BUA02SiteCertPassword.value|=$app_gw_cert_pwd') > deployHubNetwork.Parameters.json
 
 # Navigate back to root dir to execute the deployment of azure resources
-cd ..
+# cd ..
 
 # This deployment shd create the hub virtual network and the application gateway 
 az deployment group create -g $RG_NAME -n $HUB_DEPLOYMENT_NAME -f AzureDeploymentManifests/deployHubNetwork.json -p AzureDeploymentManifests/deployHubNetwork.parameters.json
 # Deploy the Spoke-A components, Spoke Vnet, peering with the hub, an AKS cluster and the associated services
 az deployment group create -g $RG_NAME -n $SPOKEA_DEPLOYMENT_NAME -f AzureDeploymentManifests/deploySpokeNetwork-BUA1.json
 # query the required outputs from each of the deployments
-# az deployment group create -g $RG_NAME -n $SPOKEB_DEPLOYMENT_NAME_DEPLOYMENT_NAME -f AzureDeploymentManifests/deploySpokeNetwork-BUA2.json
+az deployment group create -g $RG_NAME -n $SPOKEB_DEPLOYMENT_NAME -f AzureDeploymentManifests/deploySpokeNetwork-BUA2.json
 
 # query the required outputs from each of the deployments
-az group deployment show -g $RG_NAME -n $HUB_DEPLOYMENT_NAME --query "properties.outputs" -o json > hubdeployment-outputs.json
-az group deployment show -g $RG_NAME -n $SPOKEA_DEPLOYMENT_NAME --query "properties.outputs" -o json > spoke1deployment-outputs.json
-# az group deployment show -g $RG_NAME -n $SPOKEB_DEPLOYMENT_NAME --query "properties.outputs" -o json > spoke2deployment-outputs.json
+az deployment group show -g $RG_NAME -n $HUB_DEPLOYMENT_NAME --query "properties.outputs" -o json > hubdeployment-outputs.json
+az deployment group show -g $RG_NAME -n $SPOKEA_DEPLOYMENT_NAME --query "properties.outputs" -o json > spoke1deployment-outputs.json
+az deployment group show -g $RG_NAME -n $SPOKEB_DEPLOYMENT_NAME --query "properties.outputs" -o json > spoke2deployment-outputs.json
 
