@@ -10,6 +10,16 @@ This repository contains reference architecture implementation of using Azure Ap
 ## Architecture Diagram
 ![Aks-Scenarios - MultiTenant-AGIC](https://user-images.githubusercontent.com/13979783/157807791-12061010-5a07-4a40-8633-a406a8f89b8f.png)
 
+## Comparison of the baseline and  current approaches
+The [aks-baseline architecture](https://github.com/mspnp/aks-baseline) deploys the application gateway (without AGIC) in the spoke network and the same would be considered as a spoke component. If the architecture were to be extended to multiple spokes, then each of the spoke would be receiving its own app-gw.  
+The architecure that we have adopted here is based a common hub and spoke network model used in many of the enterprise's cloud adoption journey. This would be the natural step when multiple teams move their web-based apps to the cloud (AKS cluster(s)) and can share the same application gateway. If teams need their own app-gw for scale-out and higher sku needs, then it would make sense to deploy a dedicated app-gw in the spoke network where the cluster is deployed  
+![image](https://user-images.githubusercontent.com/13979783/157811607-a7583083-ddf0-4f8a-b199-19cd8e1e8d21.png)
+src: https://docs.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/hub-spoke-network-topology#overview
+
+
+### Note (before deployment)
+In an enterprise setup, the hub and spoke components would be deployed to separate subscriptions or separate resource groups within the same subscription. This setup is for quick deployment and test purposes and so the hub and spoke components are deployed to the same resource group.
+
 ## Deployment instructions
 1. Update of the necessary parameters in the parameters file and the script files
    - Parameters except for the certificate data and password are to be updated in the deployHubNetwork.Parameters.json
@@ -22,10 +32,20 @@ This repository contains reference architecture implementation of using Azure Ap
    - deployAzureResource.sh
    - deployBUA001-ClusterResources.sh
    - deployBUA002-ClusterResources.sh 
-3. Note: In an enterprise setup the hub and spoke components would be deployed to separate subscriptions or separate resource groups within the same subscription. This setup is for quick deployment and test purposes.
-4. additional comments on the steps that update the helmconfig.yaml file
-   - Manual update of shared and RBACEnabled fields in the helm config
-5. mention the need to add the subdomain names and the corresponding ipv4 public IP addresses in the hosts file for quick testing
-6. **Note**: Deployment as per the architecture diagram would need separate resource groups for each of the spokes and the hub (this can be separate subscriptions in an enterprise setup). WE have deployed all the resources in the same RG for the sake of simplicity 
+3. Deployment of the kubernetes manifests for each of the clusters needs to be performed from within separate WSL instances (or cloud shell instances). The kube configs of the clusters should be kept separate and it is not advisable to try updating both the clusters from within the same WSL instance
+4. Add the subdomain names (bua001.contoso.com & bua002.consoto.com) and the ipv4 public IP address of the application gateway in the hosts file (c:\Windows\System32\Drivers\etc\hosts in windows and etc/hosts in linux) before testing from your local box
+
+## Concepts Used
+1. AAD Pod Identity - The AAD pod managed identity is used by the AGIC pods to make REST calls to the ARM to update the Application Gateway according to the config of the Ingress that it is associated with
+   - **Note**: 
+       - In this implementation, agic pods from both the cluster use the same user-assigned managed identity to request updates to the app-gw. As an user-assigned identity can be associated with multiple resources (agic pods in this case) and both the resources require the same RBAC permission to the same resources (resource-group and app-gw)
+       - As mentioned in an earlier note, when the clusters are deployed to different resource groups in the same subscription, using separate MIs per cluster would be the appropriate practise. 
+2. Application Gateway & AGIC
+   - Hosting of Multiple Sites
+   - TLS support for each of the sites (can be completely different domains or sub-domains of the same parent domain)
+
+
+
+
 
 
