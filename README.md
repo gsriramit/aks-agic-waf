@@ -61,7 +61,35 @@ kubectl describe ingress votingapp-ingress
    - https://bua001.contoso.com should take you to the aspnet app page 
    - https://bua002.contoso.com should take you to the voting app page
 
+## WAF Configuration (WIP)
+We use the WAF_v2 SKU of the application gateway for this implementation. This provides us the possibility of using WAF to analyze the inbound HTTPS requests using the inbuilt OWASP (3.x) and advanced rule sets.  
+A recent update announced my Microsoft brought in the possibility of configuring WAF policies at 3 different levels of the deployment stamp, at the gateway, listener and the uri. When this feature is to be applied to the current deployment, the following mapping would appy  
 
+| Policy Level | Component |
+|--------------|-----------|
+|App-gw        | app-gw    |
+|listener      | applies to site configured and managed by a specific ingress resource |
+|uri           | applies to the uri paths (if path-based routing is used) configured in the ingress resource that maps to a listener |
 
+## Possible Enhancements
+TBD
 
+## Known Issues
+1. The sed commands to update the values in the helm config file do not always work 
+2. The YQ commands to update the values in the secrets yaml file does not work
+
+## References
+1. General reference of AGIC- https://www.youtube.com/watch?v=sotCKJhQtuk&ab_channel=AzurePowerLunch
+2. Blog post on AGIC - https://azure.microsoft.com/en-us/blog/application-gateway-ingress-controller-for-azure-kubernetes-service/
+3. AGIC getting started - https://azure.github.io/application-gateway-kubernetes-ingress/tutorials/tutorial.general/
+4. Possible implementation options for Multi-Tenant Scenarios
+https://docs.microsoft.com/en-us/azure/architecture/example-scenario/aks-agic/aks-agic
+5. Documentation of hosting multiple sites in an application gateway
+https://docs.microsoft.com/en-us/azure/application-gateway/multiple-site-overview
+6. TLS termination at the Application Gateway (TLS certificates configured at the listener level, so we would have 2 TLS certificates, 1 for each subdomain- BUA001 and BUA002)
+https://docs.microsoft.com/en-us/azure/application-gateway/tutorial-ssl-cli#create-the-application-gateway
+7. Configuring AKS Clusters with managed identity - specific fields required in the ARM templates
+https://borzenin.com/aks-with-managed-identity-and-managed-aad-integration/ 
+8. Implementing TLS for the hosts interacting with the ingress controller
+https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
 
